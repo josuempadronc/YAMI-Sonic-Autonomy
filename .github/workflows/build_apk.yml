@@ -39,7 +39,7 @@ jobs:
         run: |
           SDKMANAGER=$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager
           yes | $SDKMANAGER --licenses 2>/dev/null || true
-          $SDKMANAGER "build-tools;34.0.0" "platforms;android-33" "ndk;23.2.8568313"
+          $SDKMANAGER "build-tools;34.0.0" "platforms;android-33" "ndk;25.2.9519653"
           # Buildozer llama tools/bin/sdkmanager (ruta vieja); crear wrapper al nuevo
           mkdir -p $ANDROID_HOME/tools/bin
           printf '#!/bin/bash\nexec /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager "$@"\n' > $ANDROID_HOME/tools/bin/sdkmanager
