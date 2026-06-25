@@ -8,7 +8,7 @@ version         = 1.0
 source.dir      = .
 source.include_exts = py,kv,png,jpg,ttf,mp3,ogg,wav,flac
 
-entrypoint      = yami_main
+entrypoint      = main
 
 requirements    = python3,kivy,pyjnius,android
 
