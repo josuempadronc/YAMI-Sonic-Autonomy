@@ -5,6 +5,7 @@ Arquitectura: Kivy + SoundLoader + Pyjnius (Android)
 """
 import os
 import math
+import threading
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.widget import Widget
@@ -60,7 +61,7 @@ class OrbWidget(Widget):
                   angle=self._redraw, angle2=self._redraw,
                   pulse=self._redraw, ray_phase=self._redraw,
                   is_playing=self._redraw)
-        Clock.schedule_interval(self._tick, 1 / 30)
+        Clock.schedule_interval(self._tick, 1 / 20)
 
     def _tick(self, dt):
         speed = 1.8 if self.is_playing else 0.6
@@ -401,10 +402,11 @@ class YAMI_Sonic_Autonomy(App):
     # ── BIBLIOTECA ──────────────────────────────────────────────────────────
 
     def cargar_biblioteca(self, dt=0):
-        grid = self.root_widget.ids.lista_grid
-        grid.clear_widgets()
-        self.song_items.clear()
+        self._set_status('ESCANEANDO...')
+        threading.Thread(target=self._escanear_bg, daemon=True).start()
 
+    def _escanear_bg(self):
+        """Escanea archivos en background para no bloquear la UI."""
         if ANDROID:
             archivos = self._escanear_musica_android()
         elif os.path.exists(self.carpeta_musica):
@@ -415,23 +417,25 @@ class YAMI_Sonic_Autonomy(App):
             ])
         else:
             archivos = []
+        Clock.schedule_once(lambda dt, a=archivos: self._poblar_biblioteca(a), 0)
 
-        if archivos:
-            self.lista_musica = archivos
-        else:
-            # Modo DEMO (sin Android / sin carpeta)
-            self.lista_musica = [
-                "Despertar del Grimorium.mp3",
-                "Runas de Fuego.mp3",
-                "Tormenta Arcana.mp3",
-                "El Último Hechizo.mp3",
-                "Autonomía Absoluta.mp3",
-                "Ecos del Vacío.mp3",
-                "Resonancia de Mando.mp3",
-            ]
+    def _poblar_biblioteca(self, archivos):
+        """Actualiza la UI con los archivos encontrados (main thread)."""
+        grid = self.root_widget.ids.lista_grid
+        grid.clear_widgets()
+        self.song_items.clear()
 
-        n = len(self.lista_musica)
-        self.root_widget.ids.lbl_biblioteca.text = f'BIBLIOTECA: {n} TEMAS'
+        self.lista_musica = archivos if archivos else [
+            "Despertar del Grimorium.mp3",
+            "Runas de Fuego.mp3",
+            "Tormenta Arcana.mp3",
+            "El Último Hechizo.mp3",
+            "Autonomía Absoluta.mp3",
+            "Ecos del Vacío.mp3",
+            "Resonancia de Mando.mp3",
+        ]
+
+        self.root_widget.ids.lbl_biblioteca.text = f'BIBLIOTECA: {len(self.lista_musica)} TEMAS'
 
         for i, ruta in enumerate(self.lista_musica):
             display = os.path.basename(ruta)
@@ -517,19 +521,27 @@ class YAMI_Sonic_Autonomy(App):
             self.sonido_actual = None
 
         ruta = self.lista_musica[self.indice_actual]
-        # rutas en lista_musica ya son absolutas (o nombres demo sin path)
         if not os.path.isabs(ruta):
             ruta = os.path.join(self.carpeta_musica, ruta)
 
         if not os.path.exists(ruta):
-            # DEMO: simular reproducción
             self._set_status('▶ MODO DEMO')
             self._actualizar_ui_cancion()
             self.root_widget.ids.orb.is_playing = True
             return
 
-        self.sonido_actual = SoundLoader.load(ruta)
-        if self.sonido_actual:
+        self._set_status('CARGANDO...')
+        threading.Thread(target=self._cargar_audio_bg, args=(ruta,), daemon=True).start()
+
+    def _cargar_audio_bg(self, ruta):
+        """Carga el audio en background para no bloquear la UI."""
+        sonido = SoundLoader.load(ruta)
+        Clock.schedule_once(lambda dt, s=sonido: self._iniciar_play(s), 0)
+
+    def _iniciar_play(self, sonido):
+        """Inicia la reproducción en el main thread."""
+        if sonido:
+            self.sonido_actual = sonido
             self.sonido_actual.volume = self.root_widget.ids.vol_slider.value
             self.sonido_actual.bind(on_stop=self._on_fin)
             self.sonido_actual.play()
