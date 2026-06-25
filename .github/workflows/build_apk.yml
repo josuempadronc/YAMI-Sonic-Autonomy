@@ -37,14 +37,11 @@ jobs:
 
       - name: Aceptar licencias Android SDK del sistema
         run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
-            "build-tools;34.0.0" \
-            "platforms;android-33" \
-            "ndk;25.2.9519653"
-          # Buildozer busca sdkmanager en tools/bin/ (ruta vieja); crear symlink a la nueva
-          mkdir -p $ANDROID_HOME/tools/bin
-          ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager $ANDROID_HOME/tools/bin/sdkmanager
+          SDKMANAGER=$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager
+          yes | $SDKMANAGER --licenses 2>/dev/null || true
+          # Instalar componentes + "tools" (paquete viejo que pone sdkmanager en tools/bin/)
+          $SDKMANAGER "build-tools;34.0.0" "platforms;android-33" "ndk;25.2.9519653" "tools"
+          echo "sdkmanager en tools/bin: $(ls $ANDROID_HOME/tools/bin/sdkmanager 2>/dev/null || echo NO)"
 
       - name: Cache buildozer
         uses: actions/cache@v4
