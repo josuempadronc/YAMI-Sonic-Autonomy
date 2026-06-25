@@ -376,11 +376,14 @@ class YAMI_Sonic_Autonomy(App):
         self.root_widget = YAMI_Layout()
 
         # Ticks
-        Clock.schedule_once(self.cargar_biblioteca, 0.8)
         Clock.schedule_interval(self._tick_progreso, 0.5)
 
         if ANDROID:
-            Clock.schedule_once(self._pedir_permisos, 1.2)
+            # Pedir permisos primero; la biblioteca carga en el callback
+            Clock.schedule_once(self._pedir_permisos, 0.6)
+        else:
+            # En PC cargar directo
+            Clock.schedule_once(self.cargar_biblioteca, 0.8)
 
         return self.root_widget
 
@@ -391,11 +394,19 @@ class YAMI_Sonic_Autonomy(App):
         grid.clear_widgets()
         self.song_items.clear()
 
-        if os.path.exists(self.carpeta_musica):
-            self.lista_musica = sorted([
-                f for f in os.listdir(self.carpeta_musica)
+        if ANDROID:
+            archivos = self._escanear_musica_android()
+        elif os.path.exists(self.carpeta_musica):
+            archivos = sorted([
+                os.path.join(self.carpeta_musica, f)
+                for f in os.listdir(self.carpeta_musica)
                 if f.lower().endswith(('.mp3', '.ogg', '.wav', '.flac', '.m4a'))
             ])
+        else:
+            archivos = []
+
+        if archivos:
+            self.lista_musica = archivos
         else:
             # Modo DEMO (sin Android / sin carpeta)
             self.lista_musica = [
@@ -411,8 +422,9 @@ class YAMI_Sonic_Autonomy(App):
         n = len(self.lista_musica)
         self.root_widget.ids.lbl_biblioteca.text = f'BIBLIOTECA: {n} TEMAS'
 
-        for i, nombre in enumerate(self.lista_musica):
-            item = SongItem(nombre=nombre, indice=i, app_ref=self)
+        for i, ruta in enumerate(self.lista_musica):
+            display = os.path.basename(ruta)
+            item = SongItem(nombre=display, indice=i, app_ref=self)
             grid.add_widget(item)
             self.song_items.append(item)
 
@@ -420,9 +432,48 @@ class YAMI_Sonic_Autonomy(App):
             self._actualizar_ui_cancion()
             self._set_status('NÚCLEO LISTO')
 
+    def _escanear_musica_android(self):
+        """Escanea Music, Download y subdirectorios buscando audio."""
+        ext = ('.mp3', '.ogg', '.wav', '.flac', '.m4a', '.aac', '.opus')
+        carpetas = [
+            "/storage/emulated/0/Music",
+            "/storage/emulated/0/music",
+            "/storage/emulated/0/Download",
+            "/storage/emulated/0/Downloads",
+            "/sdcard/Music",
+            "/sdcard/Download",
+        ]
+        archivos = []
+        seen = set()
+        for carpeta in carpetas:
+            if not os.path.exists(carpeta):
+                continue
+            try:
+                for entry in os.listdir(carpeta):
+                    ruta = os.path.join(carpeta, entry)
+                    if entry.lower().endswith(ext):
+                        key = os.path.realpath(ruta)
+                        if key not in seen:
+                            seen.add(key)
+                            archivos.append(ruta)
+                    elif os.path.isdir(ruta):
+                        try:
+                            for sub in os.listdir(ruta):
+                                if sub.lower().endswith(ext):
+                                    sp = os.path.join(ruta, sub)
+                                    key = os.path.realpath(sp)
+                                    if key not in seen:
+                                        seen.add(key)
+                                        archivos.append(sp)
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+        return sorted(archivos, key=lambda x: os.path.basename(x).lower())
+
     def _actualizar_ui_cancion(self):
         nombre = self.lista_musica[self.indice_actual]
-        display = nombre.rsplit('.', 1)[0]
+        display = os.path.basename(nombre).rsplit('.', 1)[0]
         self.root_widget.ids.lbl_cancion.text = display
         for i, item in enumerate(self.song_items):
             item.set_activo(i == self.indice_actual)
@@ -454,8 +505,10 @@ class YAMI_Sonic_Autonomy(App):
             self.sonido_actual.stop()
             self.sonido_actual = None
 
-        nombre = self.lista_musica[self.indice_actual]
-        ruta = os.path.join(self.carpeta_musica, nombre)
+        ruta = self.lista_musica[self.indice_actual]
+        # rutas en lista_musica ya son absolutas (o nombres demo sin path)
+        if not os.path.isabs(ruta):
+            ruta = os.path.join(self.carpeta_musica, ruta)
 
         if not os.path.exists(ruta):
             # DEMO: simular reproducción
@@ -547,12 +600,15 @@ class YAMI_Sonic_Autonomy(App):
     COMANDOS = {
         'reproducir': ['play', 'reproduce', 'music', 'música', 'continúa', 'continua'],
         'pausar':     ['pausa', 'pause', 'para', 'detente'],
-        'detener':    ['stop', 'detén', 'deten', 'silencio', 'apaga'],
-        'siguiente':  ['siguiente', 'next', 'adelante', 'salta', 'otra'],
-        'anterior':   ['anterior', 'atrás', 'atras', 'back', 'regresa'],
-        'subir_vol':  ['sube', 'más volumen', 'mas volumen', 'louder'],
-        'bajar_vol':  ['baja', 'menos volumen', 'quieter', 'silencioso'],
+        'detener':    ['stop', 'detén', 'deten', 'detener', 'silencio', 'apaga', 'para todo'],
+        'siguiente':  ['siguiente', 'next', 'adelante', 'salta', 'otra', 'próxima', 'proxima', 'avanza'],
+        'anterior':   ['anterior', 'atrás', 'atras', 'back', 'regresa', 'vuelve', 'retrocede', 'previa', 'previo'],
+        'subir_vol':  ['sube', 'más volumen', 'mas volumen', 'louder', 'más alto', 'mas alto', 'sube el volumen'],
+        'bajar_vol':  ['baja', 'menos volumen', 'quieter', 'silencioso', 'más bajo', 'mas bajo', 'baja el volumen'],
     }
+
+    COMANDOS_PLAY = ['play', 'reproduce', 'reproducir', 'toca', 'pon', 'inicia', 'empieza', 'comienza', 'música', 'musica']
+    COMANDOS_PAUSAR = ['pausa', 'pause', 'para', 'espera', 'suspende']
 
     def toggle_microfono(self):
         self.mic_activo = not self.mic_activo
@@ -585,11 +641,19 @@ class YAMI_Sonic_Autonomy(App):
     def _iniciar_reconocimiento(self):
         """Lanzar SpeechRecognizer de Android en modo continuo."""
         try:
-            PythonActivity  = autoclass('org.kivy.android.PythonActivity')
-            SpeechRecognizer= autoclass('android.speech.SpeechRecognizer')
-            Intent          = autoclass('android.content.Intent')
-            RecognizerIntent= autoclass('android.speech.RecognizerIntent')
-            Locale          = autoclass('java.util.Locale')
+            # Destruir recognizer anterior antes de crear uno nuevo
+            if self._recognizer:
+                try:
+                    self._recognizer.stopListening()
+                    self._recognizer.destroy()
+                except Exception:
+                    pass
+                self._recognizer = None
+
+            PythonActivity   = autoclass('org.kivy.android.PythonActivity')
+            SpeechRecognizer = autoclass('android.speech.SpeechRecognizer')
+            Intent           = autoclass('android.content.Intent')
+            RecognizerIntent = autoclass('android.speech.RecognizerIntent')
 
             activity = PythonActivity.mActivity
             self._recognizer = SpeechRecognizer.createSpeechRecognizer(activity)
@@ -599,8 +663,15 @@ class YAMI_Sonic_Autonomy(App):
             intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
             intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
                             RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-            intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+            # Forzar español; "es" cubre es-ES, es-MX, es-AR, etc.
+            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es")
+            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "es")
+            intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5)
+            # Más tolerancia al silencio para dar tiempo de hablar
+            intent.putExtra(
+                RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500)
+            intent.putExtra(
+                RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 300)
             intent.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE,
                             activity.getPackageName())
 
@@ -648,7 +719,7 @@ class YAMI_Sonic_Autonomy(App):
             self._set_mic_ui(True, 'ORDEN NO RECONOCIDA')
 
         # Re-escuchar automáticamente en Android
-        if ANDROID and self.mic_activo and self._recognizer:
+        if ANDROID and self.mic_activo:
             Clock.schedule_once(lambda dt: self._iniciar_reconocimiento(), 1.5)
 
     # ── ANDROID PERMISOS ────────────────────────────────────────────────────
@@ -656,12 +727,26 @@ class YAMI_Sonic_Autonomy(App):
     def _pedir_permisos(self, dt):
         try:
             from android.permissions import request_permissions, Permission
-            request_permissions([
-                Permission.READ_EXTERNAL_STORAGE,
-                Permission.RECORD_AUDIO,
-            ])
-        except Exception:
-            pass
+            VERSION = autoclass('android.os.Build$VERSION')
+            if VERSION.SDK_INT >= 33:
+                # Android 13+: READ_EXTERNAL_STORAGE ya no da acceso a audio
+                perms = [
+                    'android.permission.READ_MEDIA_AUDIO',
+                    Permission.RECORD_AUDIO,
+                ]
+            else:
+                perms = [
+                    Permission.READ_EXTERNAL_STORAGE,
+                    Permission.RECORD_AUDIO,
+                ]
+            request_permissions(perms, self._on_permisos_granted)
+        except Exception as e:
+            self._set_status(f'PERM: {str(e)[:25]}')
+            Clock.schedule_once(self.cargar_biblioteca, 0.3)
+
+    def _on_permisos_granted(self, permissions, results):
+        """Callback al conceder permisos: recarga biblioteca con acceso real."""
+        Clock.schedule_once(self.cargar_biblioteca, 0.3)
 
     # ── UTILS ────────────────────────────────────────────────────────────────
 

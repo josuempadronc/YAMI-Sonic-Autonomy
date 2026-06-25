@@ -22,7 +22,7 @@ android.ndk             = 25c
 android.sdk_path        = /usr/local/lib/android/sdk
 android.ndk_path        = /usr/local/lib/android/sdk/ndk/25.2.9519653
 
-android.permissions     = INTERNET,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,RECORD_AUDIO
+android.permissions     = INTERNET,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,RECORD_AUDIO,READ_MEDIA_AUDIO
 android.archs           = arm64-v8a, armeabi-v7a
 android.accept_sdk_license = True
 
