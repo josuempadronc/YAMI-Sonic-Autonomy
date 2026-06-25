@@ -17,10 +17,10 @@ fullscreen      = 1
 
 android.minapi          = 21
 android.api             = 33
-android.ndk             = 25c
+android.ndk             = 23b
 
 android.sdk_path        = /usr/local/lib/android/sdk
-android.ndk_path        = /usr/local/lib/android/sdk/ndk/25.2.9519653
+android.ndk_path        = /usr/local/lib/android/sdk/ndk/23.2.8568313
 
 android.permissions     = INTERNET,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,RECORD_AUDIO
 android.archs           = arm64-v8a, armeabi-v7a
