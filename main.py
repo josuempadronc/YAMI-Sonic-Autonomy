@@ -295,10 +295,7 @@ class SongItem(Button):
 # ─────────────────────────────────────────────────────────────────────────────
 if ANDROID:
     class YAMIVoiceListener(PythonJavaClass):
-        """
-        Implementa android.speech.RecognitionListener en Python via Pyjnius.
-        Llama a app.procesar_comando_voz() al recibir resultados.
-        """
+        """Implementa android.speech.RecognitionListener via Pyjnius."""
         __javainterfaces__ = ['android/speech/RecognitionListener']
         __javacontext__ = 'app'
 
@@ -326,25 +323,39 @@ if ANDROID:
         @java_method('(I)V')
         def onError(self, error):
             Clock.schedule_once(lambda dt:
-                self.app_ref._set_mic_ui(False, f'ERROR VOZ: {error}'), 0)
+                self.app_ref._on_voice_error(error), 0)
 
-        @java_method('(Landroid/os/Bundle;)V')
-        def onEndOfSpeech(self): pass
-
-        @java_method('(Landroid/os/Bundle;)V')
+        # Firmas exactas del interface RecognitionListener de Android
+        @java_method('()V')
         def onBeginningOfSpeech(self): pass
 
-        @java_method('(II)V')
+        @java_method('()V')
+        def onEndOfSpeech(self): pass
+
+        @java_method('(F)V')
         def onRmsChanged(self, rmsdB): pass
 
         @java_method('([B)V')
         def onBufferReceived(self, buffer): pass
 
-        @java_method('(ILandroid/os/Bundle;)V')
+        @java_method('(Landroid/os/Bundle;)V')
         def onPartialResults(self, partialResults): pass
 
         @java_method('(ILandroid/os/Bundle;)V')
         def onEvent(self, eventType, params): pass
+
+    class _Runnable(PythonJavaClass):
+        """Wrapper para ejecutar código Python en el UI thread de Android."""
+        __javainterfaces__ = ['java/lang/Runnable']
+        __javacontext__ = 'app'
+
+        def __init__(self, fn):
+            super().__init__()
+            self._fn = fn
+
+        @java_method('()V')
+        def run(self):
+            self._fn()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -639,9 +650,19 @@ class YAMI_Sonic_Autonomy(App):
             lbl2.color = (0.4, 0, 0.6, 0.8)
 
     def _iniciar_reconocimiento(self):
-        """Lanzar SpeechRecognizer de Android en modo continuo."""
+        """Lanzar SpeechRecognizer en el UI thread de Android (obligatorio)."""
         try:
-            # Destruir recognizer anterior antes de crear uno nuevo
+            Handler = autoclass('android.os.Handler')
+            Looper  = autoclass('android.os.Looper')
+            Handler(Looper.getMainLooper()).post(_Runnable(self._setup_recognizer))
+        except Exception as e:
+            self._set_mic_ui(False, f'MIC ERROR: {str(e)[:28]}')
+            self.mic_activo = False
+
+    def _setup_recognizer(self):
+        """Se ejecuta en el UI thread de Android."""
+        try:
+            # Destruir recognizer anterior
             if self._recognizer:
                 try:
                     self._recognizer.stopListening()
@@ -663,11 +684,9 @@ class YAMI_Sonic_Autonomy(App):
             intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
             intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
                             RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            # Forzar español; "es" cubre es-ES, es-MX, es-AR, etc.
             intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es")
             intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "es")
             intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5)
-            # Más tolerancia al silencio para dar tiempo de hablar
             intent.putExtra(
                 RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500)
             intent.putExtra(
@@ -676,19 +695,36 @@ class YAMI_Sonic_Autonomy(App):
                             activity.getPackageName())
 
             self._recognizer.startListening(intent)
-
         except Exception as e:
-            self._set_mic_ui(False, f'MIC ERROR: {str(e)[:28]}')
-            self.mic_activo = False
+            Clock.schedule_once(lambda dt, err=str(e):
+                self._set_mic_ui(False, f'MIC ERROR: {err[:28]}'), 0)
+            Clock.schedule_once(lambda dt: setattr(self, 'mic_activo', False), 0)
 
     def _detener_reconocimiento(self):
-        if self._recognizer:
-            try:
-                self._recognizer.stopListening()
-                self._recognizer.destroy()
-            except Exception:
-                pass
-            self._recognizer = None
+        if not self._recognizer:
+            return
+        rec = self._recognizer
+        self._recognizer = None
+        try:
+            Handler = autoclass('android.os.Handler')
+            Looper  = autoclass('android.os.Looper')
+            def _stop():
+                try:
+                    rec.stopListening()
+                    rec.destroy()
+                except Exception:
+                    pass
+            Handler(Looper.getMainLooper()).post(_Runnable(_stop))
+        except Exception:
+            pass
+
+    def _on_voice_error(self, error):
+        # Error 7 = no match, error 6 = no speech — reiniciar silenciosamente
+        if error in (6, 7) and self.mic_activo:
+            Clock.schedule_once(lambda dt: self._iniciar_reconocimiento(), 1.0)
+        else:
+            self._set_mic_ui(False, f'VOZ ERROR: {error}')
+            self.mic_activo = False
 
     def procesar_comando_voz(self, texto: str):
         """Interpreta el texto reconocido y ejecuta la acción."""
