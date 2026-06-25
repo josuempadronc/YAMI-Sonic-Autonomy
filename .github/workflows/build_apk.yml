@@ -1,0 +1,62 @@
+name: Build YAMI APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:   # permite lanzarlo manualmente desde GitHub
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      # 1. Clonar el repo
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      # 2. Instalar dependencias del sistema
+      - name: Instalar dependencias Linux
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            git zip unzip openjdk-17-jdk python3-pip python3-virtualenv \
+            autoconf libtool pkg-config zlib1g-dev libncurses5-dev \
+            libncursesw5-dev cmake libffi-dev libssl-dev \
+            automake autopoint gettext build-essential
+
+      # 3. Configurar Java 17
+      - name: Configurar Java 17
+        run: |
+          sudo update-alternatives --set java /usr/lib/jvm/java-17-openjdk-amd64/bin/java
+          sudo update-alternatives --set javac /usr/lib/jvm/java-17-openjdk-amd64/bin/javac
+          java -version
+
+      # 4. Instalar Python deps (versiones exactas compatibles)
+      - name: Instalar buildozer y Cython
+        run: |
+          pip3 install --upgrade pip
+          pip3 install cython==0.29.33
+          pip3 install --upgrade setuptools
+          pip3 install buildozer
+
+      # 5. Cache del SDK/NDK de Android (ahorra ~30 min en builds sucesivos)
+      - name: Cache buildozer global
+        uses: actions/cache@v3
+        with:
+          path: ~/.buildozer
+          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            buildozer-${{ runner.os }}-
+
+      # 6. Compilar APK debug
+      - name: Compilar APK
+        run: |
+          buildozer -v android debug
+
+      # 7. Subir el APK como artefacto descargable
+      - name: Subir APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: YAMI-Sonic-Autonomy-APK
+          path: bin/*.apk
+          retention-days: 30

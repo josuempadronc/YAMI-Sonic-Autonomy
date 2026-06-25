@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=400,initial-scale=1">
+<title>YAMI: Sonic Autonomy v2</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Rajdhani:wght@400;600;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#04010a;display:flex;justify-content:center;align-items:flex-start;min-height:100vh;padding:24px;font-family:'Rajdhani',sans-serif}
+
+/* ── PHONE SHELL ── */
+.phone{
+  width:360px;background:#060111;
+  border:1.5px solid rgba(165,115,0,.45);border-radius:10px;
+  padding:18px 14px 14px;position:relative;overflow:hidden;
+  display:flex;flex-direction:column;gap:9px;
+  box-shadow:0 0 40px rgba(80,0,160,.25),0 0 80px rgba(80,0,160,.1);
+}
+/* grietas */
+.phone::before{content:'';position:absolute;inset:0;
+  background:linear-gradient(127deg,transparent 42%,rgba(90,0,170,.09) 43%,transparent 44%),
+             linear-gradient(243deg,transparent 38%,rgba(90,0,170,.05) 39%,transparent 40%);
+  pointer-events:none}
+.phone::after{content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 50% 32%,rgba(90,0,180,.08) 0%,transparent 62%);
+  pointer-events:none}
+/* esquinas doradas */
+.corner{position:absolute;width:16px;height:16px;border-color:rgba(165,115,0,.7);border-style:solid}
+.corner.tl{top:5px;left:5px;border-width:1.5px 0 0 1.5px}
+.corner.tr{top:5px;right:5px;border-width:1.5px 1.5px 0 0}
+.corner.bl{bottom:5px;left:5px;border-width:0 0 1.5px 1.5px}
+.corner.br{bottom:5px;right:5px;border-width:0 1.5px 1.5px 0}
+
+/* ── TÍTULO ── */
+.titulo{text-align:center;padding-bottom:8px;border-bottom:1px solid rgba(140,95,0,.2)}
+.titulo-yami{font-family:'Cinzel',serif;font-size:26px;font-weight:900;
+  color:#c8961a;letter-spacing:8px;
+  text-shadow:0 0 14px rgba(130,0,240,.7),0 0 30px rgba(130,0,240,.35);line-height:1}
+.titulo-sub{font-size:9px;letter-spacing:5px;color:#7520d0;font-weight:700;margin-top:4px}
+
+/* ── ORBE ── */
+.orbe-wrap{display:flex;justify-content:center;align-items:center;height:136px;position:relative}
+canvas#orb{position:absolute}
+
+/* ── CANCIÓN ── */
+.cancion-box{
+  border:1px solid rgba(90,0,165,.48);border-radius:5px;
+  background:rgba(50,0,100,.14);padding:7px 12px;text-align:center
+}
+.cancion-nombre{color:#f2f2f2;font-size:14px;font-weight:700;letter-spacing:.8px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cancion-status{color:#7520d0;font-size:10px;letter-spacing:2px;margin-top:3px;font-weight:700}
+
+/* ── PROGRESO ── */
+.prog-row{display:flex;align-items:center;gap:6px}
+.t{color:rgba(175,125,0,.92);font-size:10px;font-weight:700;min-width:28px}
+.prog-track{flex:1;height:7px;background:rgba(70,0,130,.38);border-radius:4px;
+  border:.7px solid rgba(90,0,160,.42);overflow:visible;position:relative;cursor:pointer}
+.prog-fill{height:100%;width:34%;background:linear-gradient(to right,rgba(130,75,0,.85),rgba(200,158,0,1));
+  border-radius:4px;position:relative;transition:width .4s}
+.prog-dot{width:9px;height:9px;background:#f0d060;border-radius:50%;
+  position:absolute;right:-4.5px;top:50%;transform:translateY(-50%);
+  box-shadow:0 0 6px rgba(220,180,0,.9)}
+
+/* ── VOLUMEN ── */
+.vol-row{display:flex;align-items:center;gap:8px}
+.vol-icon{color:rgba(175,125,0,.82);font-size:12px;min-width:16px}
+.vol-track{flex:1;height:5px;background:rgba(70,0,130,.38);border-radius:3px;
+  border:.7px solid rgba(90,0,160,.35);position:relative;cursor:pointer}
+.vol-fill{height:100%;width:70%;background:linear-gradient(to right,#5500aa,#9030ff);border-radius:3px}
+.vol-thumb{position:absolute;right:30%;top:50%;transform:translate(50%,-50%);
+  width:11px;height:11px;background:#c8921a;border-radius:50%;
+  box-shadow:0 0 7px rgba(200,145,0,.85)}
+.vol-pct{color:#7020cc;font-size:10px;font-weight:700;min-width:28px;text-align:right}
+
+/* ── BOTONES ── */
+.controles{display:flex;gap:7px}
+.btn{
+  flex:1;height:52px;
+  background:rgba(50,0,95,.2);
+  border:1.1px solid rgba(90,0,165,.72);
+  border-radius:5px;
+  color:rgba(175,125,0,1);
+  font-family:'Rajdhani',sans-serif;font-size:19px;font-weight:700;
+  cursor:pointer;transition:all .14s;
+  display:flex;align-items:center;justify-content:center
+}
+.btn:hover,.btn:active{
+  background:rgba(90,0,185,.38);
+  border-color:rgba(195,150,0,1);color:#fff;
+  box-shadow:0 0 12px rgba(110,0,240,.55)
+}
+.btn.play{border-color:rgba(175,125,0,.92);border-width:1.8px;font-size:23px;
+  box-shadow:0 0 9px rgba(175,125,0,.22)}
+.btn.play:hover{box-shadow:0 0 18px rgba(175,125,0,.55),0 0 9px rgba(110,0,240,.4)}
+
+/* ── MIC ── */
+.mic-box{
+  display:flex;align-items:center;gap:8px;
+  border:.8px solid rgba(90,0,150,.32);border-radius:5px;
+  background:rgba(40,0,80,.12);padding:6px 8px
+}
+.btn-mic{
+  padding:7px 12px;background:rgba(50,0,95,.22);
+  border:1.1px solid rgba(90,0,165,.72);border-radius:4px;
+  color:rgba(175,125,0,1);font-family:'Rajdhani',sans-serif;
+  font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.8px;
+  transition:all .14s;white-space:nowrap
+}
+.btn-mic:hover{background:rgba(90,0,185,.35);border-color:rgba(195,150,0,1);color:#fff}
+.btn-mic.activo{
+  background:rgba(80,0,160,.35);border-color:rgba(175,125,0,.9);color:#fff;
+  box-shadow:0 0 10px rgba(110,0,240,.45),0 0 4px rgba(110,0,240,.25)
+}
+.mic-info{flex:1}
+.mic-status{font-size:9.5px;font-weight:700;letter-spacing:.8px;color:#484848}
+.mic-status.activo{color:#7520d0;animation:blink-status 1.5s ease-in-out infinite}
+.mic-hint{font-size:8px;color:rgba(80,0,120,.85);margin-top:2px}
+@keyframes blink-status{0%,100%{opacity:1}50%{opacity:.55}}
+
+/* ── BARRA BIBLIOTECA ── */
+.bib-bar{
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(90,60,0,.1);border-radius:3px;padding:4px 8px
+}
+.bib-label{color:rgba(175,125,0,.88);font-size:10px;font-weight:700;letter-spacing:.8px}
+.btn-sm{
+  background:transparent;border:1px solid rgba(90,0,165,.6);border-radius:3px;
+  color:rgba(175,125,0,.9);font-family:'Rajdhani',sans-serif;font-size:9px;
+  font-weight:700;padding:3px 9px;cursor:pointer;letter-spacing:.8px
+}
+.btn-sm:hover{background:rgba(90,0,165,.2);border-color:rgba(175,125,0,.7)}
+
+/* ── LISTA ── */
+.lista{
+  flex:1;border:.8px solid rgba(90,0,145,.35);border-radius:5px;
+  background:rgba(40,0,80,.1);overflow-y:auto;
+  max-height:155px;min-height:100px;padding:4px;
+  display:flex;flex-direction:column;gap:2px
+}
+.song{
+  padding:7px 10px;border-radius:3px;border:.7px solid rgba(90,0,145,.22);
+  background:rgba(50,0,95,.1);color:rgba(205,205,205,.9);
+  font-size:11.5px;font-weight:600;cursor:pointer;transition:all .1s;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.song:hover{background:rgba(90,0,185,.22);color:#fff}
+.song.active{
+  background:rgba(90,0,170,.35);border-color:rgba(175,125,0,.88);
+  color:rgba(175,125,0,1);font-weight:700
+}
+.lista::-webkit-scrollbar{width:3px}
+.lista::-webkit-scrollbar-track{background:rgba(30,0,60,.3)}
+.lista::-webkit-scrollbar-thumb{background:rgba(90,0,165,.65);border-radius:2px}
+
+/* ── ANIMACIONES EXTRA ── */
+@keyframes ring-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="corner tl"></div><div class="corner tr"></div>
+  <div class="corner bl"></div><div class="corner br"></div>
+
+  <!-- TÍTULO -->
+  <div class="titulo">
+    <div class="titulo-yami">Y A M I</div>
+    <div class="titulo-sub">✦ SONIC AUTONOMY ✦</div>
+  </div>
+
+  <!-- ORBE ANIMADO -->
+  <div class="orbe-wrap">
+    <canvas id="orb" width="330" height="136"></canvas>
+  </div>
+
+  <!-- CANCIÓN -->
+  <div class="cancion-box">
+    <div class="cancion-nombre" id="nombre">Despertar del Grimorium</div>
+    <div class="cancion-status" id="status">▶ REPRODUCIENDO</div>
+  </div>
+
+  <!-- PROGRESO -->
+  <div class="prog-row">
+    <span class="t" id="t-pos">1:24</span>
+    <div class="prog-track" id="prog-track">
+      <div class="prog-fill" id="prog-fill"><div class="prog-dot"></div></div>
+    </div>
+    <span class="t" style="text-align:right" id="t-dur">4:02</span>
+  </div>
+
+  <!-- VOLUMEN -->
+  <div class="vol-row">
+    <span class="vol-icon">◈</span>
+    <div class="vol-track" id="vol-track">
+      <div class="vol-fill" id="vol-fill"></div>
+      <div class="vol-thumb" id="vol-thumb"></div>
+    </div>
+    <span class="vol-pct" id="vol-pct">70%</span>
+  </div>
+
+  <!-- CONTROLES -->
+  <div class="controles">
+    <button class="btn" onclick="anterior()">⏮</button>
+    <button class="btn play" id="btn-play" onclick="togglePlay()">▶</button>
+    <button class="btn" onclick="pausar()">⏸</button>
+    <button class="btn" onclick="detener()">⏹</button>
+    <button class="btn" onclick="siguiente()">⏭</button>
+  </div>
+
+  <!-- MICRÓFONO -->
+  <div class="mic-box">
+    <button class="btn-mic" id="btn-mic" onclick="toggleMic()">🎙  ACTIVAR VOZ</button>
+    <div class="mic-info">
+      <div class="mic-status" id="mic-status">MICRÓFONO: INACTIVO</div>
+      <div class="mic-hint" id="mic-hint">di: siguiente · pausa · stop</div>
+    </div>
+  </div>
+
+  <!-- BIBLIOTECA -->
+  <div class="bib-bar">
+    <span class="bib-label">BIBLIOTECA: 7 TEMAS</span>
+    <button class="btn-sm">⟳ CARGAR</button>
+  </div>
+
+  <!-- LISTA -->
+  <div class="lista" id="lista"></div>
+</div>
+
+<script>
+// ── DATOS ──────────────────────────────────────────────────────────────────
+const CANCIONES = [
+  'Despertar del Grimorium','Runas de Fuego','Tormenta Arcana',
+  'El Último Hechizo','Autonomía Absoluta','Ecos del Vacío','Resonancia de Mando'
+];
+let idx = 0, playing = true, micActivo = false;
+let progRatio = 0.34, volRatio = 0.70;
+let progInterval = null;
+
+// ── LISTA ──────────────────────────────────────────────────────────────────
+function renderLista(){
+  const el = document.getElementById('lista');
+  el.innerHTML = CANCIONES.map((c,i)=>
+    `<div class="song${i===idx?' active':''}" onclick="selectSong(${i})">
+      ${i===idx?'▶':'ᚱ'}  ${c}
+    </div>`
+  ).join('');
+}
+function selectSong(i){
+  idx=i; progRatio=0;
+  document.getElementById('nombre').textContent=CANCIONES[i];
+  setStatus('▶ REPRODUCIENDO'); playing=true;
+  updatePlayBtn(); renderLista(); startProg();
+}
+renderLista();
+
+// ── CONTROLES ──────────────────────────────────────────────────────────────
+function setStatus(t){ document.getElementById('status').textContent=t }
+function updatePlayBtn(){
+  document.getElementById('btn-play').textContent = playing ? '⏸':'▶';
+}
+function togglePlay(){ playing?pausar():reanudar(); }
+function pausar(){ playing=false; updatePlayBtn(); setStatus('⏸ EN PAUSA'); stopProg(); }
+function reanudar(){ playing=true; updatePlayBtn(); setStatus('▶ REPRODUCIENDO'); startProg(); }
+function detener(){
+  playing=false; progRatio=0; updatePlayBtn(); setStatus('⏹ DETENIDO');
+  stopProg(); updateProg();
+}
+function siguiente(){ idx=(idx+1)%CANCIONES.length; selectSong(idx); }
+function anterior(){ idx=(idx-1+CANCIONES.length)%CANCIONES.length; selectSong(idx); }
+
+// ── PROGRESO SIMULADO ──────────────────────────────────────────────────────
+function startProg(){
+  stopProg();
+  progInterval=setInterval(()=>{
+    if(!playing) return;
+    progRatio=Math.min(progRatio+0.002,1);
+    updateProg();
+    if(progRatio>=1){ setTimeout(siguiente,400); }
+  },100);
+}
+function stopProg(){ if(progInterval){clearInterval(progInterval);progInterval=null;} }
+function updateProg(){
+  const pct=(progRatio*100).toFixed(1)+'%';
+  document.getElementById('prog-fill').style.width=pct;
+  const total=242, pos=Math.round(progRatio*total);
+  document.getElementById('t-pos').textContent=fmt(pos);
+  document.getElementById('t-dur').textContent=fmt(total);
+}
+function fmt(s){ return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; }
+startProg();
+
+// ── VOLUMEN ────────────────────────────────────────────────────────────────
+document.getElementById('vol-track').addEventListener('click',e=>{
+  const r=e.currentTarget.getBoundingClientRect();
+  volRatio=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+  const pct=Math.round(volRatio*100);
+  document.getElementById('vol-fill').style.width=pct+'%';
+  document.getElementById('vol-thumb').style.right=(100-pct)+'%';
+  document.getElementById('vol-pct').textContent=pct+'%';
+});
+
+// ── MICRÓFONO ──────────────────────────────────────────────────────────────
+function toggleMic(){
+  micActivo=!micActivo;
+  const btn=document.getElementById('btn-mic');
+  const st=document.getElementById('mic-status');
+  const hint=document.getElementById('mic-hint');
+  if(micActivo){
+    btn.textContent='🎙  VOZ: ACTIVA'; btn.classList.add('activo');
+    st.textContent='ESPERANDO ORDEN...'; st.classList.add('activo');
+    hint.textContent='di: siguiente · pausa · stop · sube · baja';
+  } else {
+    btn.textContent='🎙  ACTIVAR VOZ'; btn.classList.remove('activo');
+    st.textContent='MICRÓFONO: INACTIVO'; st.classList.remove('activo');
+    hint.textContent='di: siguiente · pausa · stop';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ORBE ANIMADO (Canvas 2D)
+// ─────────────────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('orb');
+const ctx = canvas.getContext('2d');
+
+let orbAngle = 0, orbAngle2 = 0, orbPulse = 0, pulseDir = 1, rayPhase = 0;
+
+function drawOrb(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const cx = canvas.width/2, cy = canvas.height/2;
+  const p = orbPulse;
+
+  // ── Halo exterior difuso
+  const haloG = ctx.createRadialGradient(cx,cy,0,cx,cy,85+p*10);
+  haloG.addColorStop(0,`rgba(100,0,200,${0.10+p*0.06})`);
+  haloG.addColorStop(1,'rgba(100,0,200,0)');
+  ctx.fillStyle=haloG; ctx.beginPath(); ctx.arc(cx,cy,85+p*10,0,Math.PI*2); ctx.fill();
+
+  // ── Partículas flotantes
+  drawParticles(cx,cy,p);
+
+  // ── Anillo de runas exterior (giratorio)
+  drawRuneRing(cx,cy,62,14,orbAngle,[0.72,0.50,0,0.40+p*0.25]);
+
+  // ── Anillo dorado exterior
+  ctx.beginPath(); ctx.arc(cx,cy,56,0,Math.PI*2);
+  ctx.strokeStyle=`rgba(185,130,0,${0.52+p*0.3})`; ctx.lineWidth=1.4; ctx.stroke();
+
+  // ── Anillo runas interior (contra-giratorio)
+  drawRuneRing(cx,cy,43,8,orbAngle2,[0.58,0.10,1,0.45+p*0.3]);
+
+  // ── Anillo morado medio
+  ctx.beginPath(); ctx.arc(cx,cy,42,0,Math.PI*2);
+  ctx.strokeStyle=`rgba(120,0,230,${0.58+p*0.28})`; ctx.lineWidth=1.6; ctx.stroke();
+
+  // ── RAYOS de energía
+  drawRays(cx,cy,p);
+
+  // ── Núcleo gradiente
+  const coreR = 28+p*6;
+  const coreG = ctx.createRadialGradient(cx-6,cy+6,0,cx,cy,coreR);
+  coreG.addColorStop(0,'rgba(200,140,255,0.95)');
+  coreG.addColorStop(0.4,'rgba(105,0,200,0.9)');
+  coreG.addColorStop(1,'rgba(40,0,90,0.92)');
+  ctx.fillStyle=coreG; ctx.beginPath(); ctx.arc(cx,cy,coreR,0,Math.PI*2); ctx.fill();
+
+  // ── Brillo 1
+  const g1 = ctx.createRadialGradient(cx,cy,0,cx,cy,18+p*4);
+  g1.addColorStop(0,'rgba(220,170,255,0.92)');
+  g1.addColorStop(1,'rgba(140,0,255,0)');
+  ctx.fillStyle=g1; ctx.beginPath(); ctx.arc(cx,cy,18+p*4,0,Math.PI*2); ctx.fill();
+
+  // ── Punto central
+  const g2=ctx.createRadialGradient(cx,cy,0,cx,cy,7);
+  g2.addColorStop(0,'rgba(255,250,255,1)');
+  g2.addColorStop(1,'rgba(200,160,255,0)');
+  ctx.fillStyle=g2; ctx.beginPath(); ctx.arc(cx,cy,7,0,Math.PI*2); ctx.fill();
+
+  // ── Borde del núcleo
+  ctx.beginPath(); ctx.arc(cx,cy,coreR,0,Math.PI*2);
+  ctx.strokeStyle=`rgba(160,80,255,${0.35+p*0.45})`; ctx.lineWidth=1.3; ctx.stroke();
+}
+
+function drawRuneRing(cx,cy,r,n,angleOff,col){
+  ctx.strokeStyle=`rgba(${col.map((v,i)=>i<3?Math.round(v*255):v).slice(0,3).join(',')},${col[3]})`;
+  ctx.lineWidth=1.1;
+  for(let i=0;i<n;i++){
+    const a=angleOff*Math.PI/180 + i*(Math.PI*2/n);
+    const rx=cx+r*Math.cos(a), ry=cy+r*Math.sin(a);
+    // Cruz rúnica
+    ctx.beginPath();
+    ctx.moveTo(rx-3*Math.sin(a),ry+3*Math.cos(a));
+    ctx.lineTo(rx+3*Math.sin(a),ry-3*Math.cos(a));
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(rx-3*Math.cos(a),ry-3*Math.sin(a));
+    ctx.lineTo(rx+3*Math.cos(a),ry+3*Math.sin(a));
+    ctx.stroke();
+  }
+}
+
+function drawRays(cx,cy,p){
+  const angles=[0,90,180,270,45,135,225,315];
+  angles.forEach((baseA,i)=>{
+    const ph=rayPhase+i*0.78;
+    const intensity=Math.abs(Math.sin(ph));
+    if(intensity<0.18) return;
+    const wobble=Math.sin(rayPhase*2.2+i*0.78)*7;
+    const a=(baseA+wobble)*Math.PI/180;
+    const r1=i<4?52:48, r2=(i<4?80:72)+p*9;
+    const x1=cx+r1*Math.cos(a), y1=cy+r1*Math.sin(a);
+    const x2=cx+r2*Math.cos(a), y2=cy+r2*Math.sin(a);
+    // Rayo morado
+    const alpha=intensity*(0.45+p*0.42);
+    ctx.strokeStyle=`rgba(140,20,255,${alpha})`;
+    ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    // Punta dorada
+    const mx=x1+(x2-x1)*0.55, my=y1+(y2-y1)*0.55;
+    ctx.strokeStyle=`rgba(210,160,0,${alpha*0.6})`;
+    ctx.lineWidth=0.9; ctx.beginPath(); ctx.moveTo(mx,my); ctx.lineTo(x2,y2); ctx.stroke();
+  });
+}
+
+function drawParticles(cx,cy,p){
+  for(let i=0;i<13;i++){
+    const base=i*37.3;
+    const a=(base+orbAngle*0.45+i*5)*Math.PI/180;
+    const drift=Math.sin(rayPhase*0.8+i*1.1)*9;
+    const r=66+(i%4)*9+drift;
+    const px=cx+r*Math.cos(a), py=cy+r*Math.sin(a);
+    const alpha=0.28+0.52*Math.abs(Math.sin(rayPhase*0.55+i*0.9));
+    const sz=1.5+(i%3);
+    ctx.fillStyle=i%3===0?`rgba(215,165,0,${alpha})`:`rgba(140,20,255,${alpha*0.8})`;
+    ctx.beginPath(); ctx.arc(px,py,sz,0,Math.PI*2); ctx.fill();
+  }
+}
+
+// ── LOOP ──────────────────────────────────────────────────────────────────
+let last=null;
+function loop(ts){
+  if(!last) last=ts;
+  const dt=(ts-last)/1000; last=ts;
+  const spd=playing?1.9:0.65;
+  orbAngle =(orbAngle + dt*30*spd)%360;
+  orbAngle2=(orbAngle2- dt*19*spd+360)%360;
+  rayPhase =(rayPhase + dt*2.3)%(Math.PI*2);
+  orbPulse+=dt*pulseDir*(playing?0.88:0.34);
+  if(orbPulse>=1){orbPulse=1;pulseDir=-1;}
+  else if(orbPulse<=0){orbPulse=0;pulseDir=1;}
+  drawOrb();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
