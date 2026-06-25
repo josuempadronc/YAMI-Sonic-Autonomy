@@ -42,6 +42,9 @@ jobs:
             "build-tools;34.0.0" \
             "platforms;android-33" \
             "ndk;25.2.9519653"
+          # Buildozer busca sdkmanager en tools/bin/ (ruta vieja); crear symlink a la nueva
+          mkdir -p $ANDROID_HOME/tools/bin
+          ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager $ANDROID_HOME/tools/bin/sdkmanager
 
       - name: Cache buildozer
         uses: actions/cache@v4
