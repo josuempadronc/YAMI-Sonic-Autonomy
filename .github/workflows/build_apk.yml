@@ -2,7 +2,7 @@ name: Build YAMI APK
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   workflow_dispatch:   # permite lanzarlo manualmente desde GitHub
 
 jobs:
