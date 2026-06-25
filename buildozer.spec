@@ -42,6 +42,9 @@ android.archs           = arm64-v8a, armeabi-v7a
 # Aceptar licencias automáticamente (CI/CD)
 android.accept_sdk_license = True
 
+# Pinchar build-tools a versión estable (evita problemas de licencia con la 37)
+android.build_tools_version = 34.0.0
+
 # Formato de salida en debug
 android.debug_artifact  = apk
 

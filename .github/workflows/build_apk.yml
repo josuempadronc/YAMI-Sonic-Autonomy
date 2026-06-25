@@ -39,21 +39,34 @@ jobs:
           pip3 install --upgrade setuptools
           pip3 install buildozer
 
-      # 5. Cache del SDK/NDK de Android (ahorra ~30 min en builds sucesivos)
+      # 5. Pre-aceptar licencias Android SDK (evita el prompt interactivo de sdkmanager)
+      - name: Pre-aceptar licencias Android SDK
+        run: |
+          mkdir -p $HOME/.buildozer/android/platform/android-sdk/licenses
+          printf "24333f8a63b6825ea9c5514f83c2829b004d1fee\n84831b9409646a918e30573bab4c9c91346d8abd\nd975f751698a77b662f1254ddbeed3901e976f5a\nd56f5187479451eabf01fb78af6dfcb131a6481e\n" \
+            > $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+          printf "33b6937f70905d29a870af534d35d9513bc7a23f\n" \
+            > $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
+          printf "8933bad161af4178b1185d1a37fbf41ea5269c55\n" \
+            > $HOME/.buildozer/android/platform/android-sdk/licenses/google-gdk-license
+          # Aceptar también en el SDK preinstalado del runner
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses 2>/dev/null || true
+
+      # 6. Cache del SDK/NDK de Android (ahorra ~30 min en builds sucesivos)
       - name: Cache buildozer global
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.buildozer
           key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
           restore-keys: |
             buildozer-${{ runner.os }}-
 
-      # 6. Compilar APK debug
+      # 7. Compilar APK debug
       - name: Compilar APK
         run: |
           buildozer -v android debug
 
-      # 7. Subir el APK como artefacto descargable
+      # 8. Subir el APK como artefacto descargable
       - name: Subir APK
         uses: actions/upload-artifact@v4
         with:
