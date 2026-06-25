@@ -33,6 +33,10 @@ android.minapi          = 21
 android.api             = 33
 android.ndk             = 25c
 
+# Rutas al SDK/NDK preinstalados en el runner de GitHub Actions
+android.sdk_path        = /usr/local/lib/android/sdk
+android.ndk_path        = /usr/local/lib/android/sdk/ndk/25.2.9519653
+
 # Permisos necesarios para YAMI
 android.permissions     = INTERNET,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,RECORD_AUDIO
 

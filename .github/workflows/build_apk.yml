@@ -33,7 +33,7 @@ jobs:
           pip3 install --upgrade pip
           pip3 install cython==0.29.33
           pip3 install --upgrade setuptools
-          pip3 install buildozer
+          pip3 install buildozer==1.5.0
 
       - name: Aceptar licencias e instalar componentes Android SDK
         run: |
@@ -42,21 +42,24 @@ jobs:
             "build-tools;34.0.0" \
             "platforms;android-33" \
             "ndk;25.2.9519653"
+          echo "NDK disponible:"
+          ls $ANDROID_HOME/ndk/
 
-      - name: Cache buildozer
+      - name: Limpiar SDK viejo en caché de buildozer
+        run: |
+          rm -rf ~/.buildozer/android/platform/android-sdk
+          rm -rf ~/.buildozer/android/platform/android-ndk-*
+
+      - name: Cache buildozer (p4a y dependencias, sin SDK/NDK)
         uses: actions/cache@v4
         with:
           path: ~/.buildozer
-          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
+          key: buildozer-${{ runner.os }}-v2-${{ hashFiles('buildozer.spec') }}
           restore-keys: |
-            buildozer-${{ runner.os }}-
+            buildozer-${{ runner.os }}-v2-
 
       - name: Compilar APK
         run: |
-          export ANDROIDSDK=$ANDROID_HOME
-          export ANDROIDNDK=$ANDROID_HOME/ndk/25.2.9519653
-          export ANDROIDAPI=33
-          export ANDROIDMINAPI=21
           buildozer -v android debug
 
       - name: Subir APK
