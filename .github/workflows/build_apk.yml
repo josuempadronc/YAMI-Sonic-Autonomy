@@ -24,9 +24,9 @@ jobs:
 
       - name: Configurar Java 17
         run: |
-          sudo update-alternatives --set java /usr/lib/jvm/java-17-openjdk-amd64/bin/java
-          sudo update-alternatives --set javac /usr/lib/jvm/java-17-openjdk-amd64/bin/javac
-          java -version
+          echo "JAVA_HOME=/usr/lib/jvm/temurin-17-jdk-amd64" >> $GITHUB_ENV
+          echo "/usr/lib/jvm/temurin-17-jdk-amd64/bin" >> $GITHUB_PATH
+          /usr/lib/jvm/temurin-17-jdk-amd64/bin/java -version
 
       - name: Instalar buildozer y Cython
         run: |
@@ -35,25 +35,30 @@ jobs:
           pip3 install --upgrade setuptools
           pip3 install buildozer==1.5.0
 
-      - name: Aceptar licencias Android SDK del sistema
+      - name: Setup Android SDK
         run: |
           SDKMANAGER=$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager
           yes | $SDKMANAGER --licenses 2>/dev/null || true
-          # Instalar componentes + "tools" (paquete viejo que pone sdkmanager en tools/bin/)
-          $SDKMANAGER "build-tools;34.0.0" "platforms;android-33" "ndk;25.2.9519653" "tools"
-          echo "sdkmanager en tools/bin: $(ls $ANDROID_HOME/tools/bin/sdkmanager 2>/dev/null || echo NO)"
+          $SDKMANAGER "build-tools;34.0.0" "platforms;android-33" "ndk;25.2.9519653"
+          # Buildozer llama tools/bin/sdkmanager (ruta vieja); crear wrapper al nuevo
+          mkdir -p $ANDROID_HOME/tools/bin
+          printf '#!/bin/bash\nexec /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager "$@"\n' > $ANDROID_HOME/tools/bin/sdkmanager
+          chmod +x $ANDROID_HOME/tools/bin/sdkmanager
+          cat $ANDROID_HOME/tools/bin/sdkmanager
 
       - name: Cache buildozer
         uses: actions/cache@v4
         with:
           path: ~/.buildozer
-          key: buildozer-${{ runner.os }}-v3-${{ hashFiles('buildozer.spec') }}
+          key: buildozer-${{ runner.os }}-v4-${{ hashFiles('buildozer.spec') }}
           restore-keys: |
-            buildozer-${{ runner.os }}-v3-
+            buildozer-${{ runner.os }}-v4-
 
       - name: Compilar APK
+        env:
+          JAVA_HOME: /usr/lib/jvm/temurin-17-jdk-amd64
         run: |
-          yes | buildozer -v android debug
+          buildozer -v android debug
 
       - name: Subir APK
         uses: actions/upload-artifact@v4
