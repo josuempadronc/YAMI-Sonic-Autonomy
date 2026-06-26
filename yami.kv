@@ -239,13 +239,13 @@
         spacing: 7
 
         RuneButton:
-            text: '⏮'
-            font_size: '20sp'
+            text: '◄◄'
+            font_size: '16sp'
             on_press: app.anterior()
 
         RuneButton:
             text: '▶'
-            font_size: '24sp'
+            font_size: '26sp'
             bold: True
             on_press: app.reproducir()
             canvas.before:
@@ -262,18 +262,19 @@
                     width: 1.8
 
         RuneButton:
-            text: '⏸'
-            font_size: '20sp'
+            text: '||'
+            font_size: '18sp'
+            bold: True
             on_press: app.pausar()
 
         RuneButton:
-            text: '⏹'
-            font_size: '20sp'
+            text: '■'
+            font_size: '18sp'
             on_press: app.detener()
 
         RuneButton:
-            text: '⏭'
-            font_size: '20sp'
+            text: '▶▶'
+            font_size: '16sp'
             on_press: app.siguiente()
 
     # ── MICRÓFONO / VOZ ──────────────────────────────────────────────────────
@@ -296,7 +297,7 @@
 
         RuneButton:
             id: btn_mic
-            text: '🎙  ACTIVAR VOZ'
+            text: '( o )  ACTIVAR VOZ'
             font_size: '11sp'
             size_hint_x: 0.48
             letter_spacing: 1

@@ -530,18 +530,9 @@ class YAMI_Sonic_Autonomy(App):
             self.root_widget.ids.orb.is_playing = True
             return
 
-        self._set_status('CARGANDO...')
-        threading.Thread(target=self._cargar_audio_bg, args=(ruta,), daemon=True).start()
-
-    def _cargar_audio_bg(self, ruta):
-        """Carga el audio en background para no bloquear la UI."""
-        sonido = SoundLoader.load(ruta)
-        Clock.schedule_once(lambda dt, s=sonido: self._iniciar_play(s), 0)
-
-    def _iniciar_play(self, sonido):
-        """Inicia la reproducción en el main thread."""
-        if sonido:
-            self.sonido_actual = sonido
+        # SoundLoader.load() debe correr en el main thread (MediaPlayer de Android lo requiere)
+        self.sonido_actual = SoundLoader.load(ruta)
+        if self.sonido_actual:
             self.sonido_actual.volume = self.root_widget.ids.vol_slider.value
             self.sonido_actual.bind(on_stop=self._on_fin)
             self.sonido_actual.play()
@@ -636,7 +627,7 @@ class YAMI_Sonic_Autonomy(App):
     def toggle_microfono(self):
         self.mic_activo = not self.mic_activo
         if self.mic_activo:
-            self.root_widget.ids.btn_mic.text = '🎙  VOZ: ACTIVA'
+            self.root_widget.ids.btn_mic.text = '( * )  VOZ: ACTIVA'
             self._set_mic_ui(True, 'ESPERANDO ORDEN...')
             if ANDROID:
                 self._iniciar_reconocimiento()
@@ -644,7 +635,7 @@ class YAMI_Sonic_Autonomy(App):
                 # Modo demo: simular escucha
                 self._set_mic_ui(True, 'SIMULANDO ESCUCHA...')
         else:
-            self.root_widget.ids.btn_mic.text = '🎙  ACTIVAR VOZ'
+            self.root_widget.ids.btn_mic.text = '( o )  ACTIVAR VOZ'
             self._set_mic_ui(False, 'MICRÓFONO: INACTIVO')
             if ANDROID:
                 self._detener_reconocimiento()
