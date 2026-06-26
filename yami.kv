@@ -239,13 +239,14 @@
         spacing: 7
 
         RuneButton:
-            text: '◄◄'
+            text: '<<'
             font_size: '16sp'
+            bold: True
             on_press: app.anterior()
 
         RuneButton:
-            text: '▶'
-            font_size: '26sp'
+            text: '>'
+            font_size: '28sp'
             bold: True
             on_press: app.reproducir()
             canvas.before:
@@ -268,13 +269,15 @@
             on_press: app.pausar()
 
         RuneButton:
-            text: '■'
-            font_size: '18sp'
+            text: '[]'
+            font_size: '16sp'
+            bold: True
             on_press: app.detener()
 
         RuneButton:
-            text: '▶▶'
+            text: '>>'
             font_size: '16sp'
+            bold: True
             on_press: app.siguiente()
 
     # ── MICRÓFONO / VOZ ──────────────────────────────────────────────────────

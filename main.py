@@ -448,42 +448,69 @@ class YAMI_Sonic_Autonomy(App):
             self._set_status('NÚCLEO LISTO')
 
     def _escanear_musica_android(self):
-        """Escanea Music, Download y subdirectorios buscando audio."""
-        ext = ('.mp3', '.ogg', '.wav', '.flac', '.m4a', '.aac', '.opus')
+        """Escanea Music, Download y subdirectorios (3 niveles) buscando audio."""
+        EXT = ('.mp3', '.wav', '.flac', '.m4a', '.aac')
+        # .ogg y .opus pueden ser PTT de WhatsApp — solo incluirlos si hay pocos archivos
+        EXT_EXTRA = ('.ogg', '.opus')
         carpetas = [
             "/storage/emulated/0/Music",
             "/storage/emulated/0/music",
+            "/storage/emulated/0/Musica",
+            "/storage/emulated/0/musica",
             "/storage/emulated/0/Download",
             "/storage/emulated/0/Downloads",
+            "/storage/emulated/0/Podcasts",
+            "/storage/emulated/0/Recordings",
             "/sdcard/Music",
+            "/sdcard/music",
             "/sdcard/Download",
         ]
         archivos = []
         seen = set()
-        for carpeta in carpetas:
-            if not os.path.exists(carpeta):
-                continue
+
+        def _scan_dir(path, depth):
+            if depth > 3:
+                return
             try:
-                for entry in os.listdir(carpeta):
-                    ruta = os.path.join(carpeta, entry)
-                    if entry.lower().endswith(ext):
+                for entry in os.listdir(path):
+                    ruta = os.path.join(path, entry)
+                    low = entry.lower()
+                    if low.endswith(EXT):
                         key = os.path.realpath(ruta)
                         if key not in seen:
                             seen.add(key)
                             archivos.append(ruta)
-                    elif os.path.isdir(ruta):
-                        try:
-                            for sub in os.listdir(ruta):
-                                if sub.lower().endswith(ext):
-                                    sp = os.path.join(ruta, sub)
-                                    key = os.path.realpath(sp)
-                                    if key not in seen:
-                                        seen.add(key)
-                                        archivos.append(sp)
-                        except Exception:
-                            pass
+                    elif os.path.isdir(ruta) and not entry.startswith('.'):
+                        _scan_dir(ruta, depth + 1)
             except Exception:
                 pass
+
+        for carpeta in carpetas:
+            if os.path.exists(carpeta):
+                _scan_dir(carpeta, 1)
+
+        # Si no encontramos nada con extensiones primarias, incluir .ogg/.opus
+        if not archivos:
+            def _scan_dir_extra(path, depth):
+                if depth > 2:
+                    return
+                try:
+                    for entry in os.listdir(path):
+                        ruta = os.path.join(path, entry)
+                        low = entry.lower()
+                        if low.endswith(EXT + EXT_EXTRA):
+                            key = os.path.realpath(ruta)
+                            if key not in seen:
+                                seen.add(key)
+                                archivos.append(ruta)
+                        elif os.path.isdir(ruta) and not entry.startswith('.'):
+                            _scan_dir_extra(ruta, depth + 1)
+                except Exception:
+                    pass
+            for carpeta in carpetas:
+                if os.path.exists(carpeta):
+                    _scan_dir_extra(carpeta, 1)
+
         return sorted(archivos, key=lambda x: os.path.basename(x).lower())
 
     def _actualizar_ui_cancion(self):
