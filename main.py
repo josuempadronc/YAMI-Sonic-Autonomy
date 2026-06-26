@@ -448,68 +448,62 @@ class YAMI_Sonic_Autonomy(App):
             self._set_status('NÚCLEO LISTO')
 
     def _escanear_musica_android(self):
-        """Escanea Music, Download y subdirectorios (3 niveles) buscando audio."""
-        EXT = ('.mp3', '.wav', '.flac', '.m4a', '.aac')
-        # .ogg y .opus pueden ser PTT de WhatsApp — solo incluirlos si hay pocos archivos
-        EXT_EXTRA = ('.ogg', '.opus')
-        carpetas = [
+        """Usa MediaStore (índice del SO) para encontrar música; fallback a filesystem."""
+        # ── 1. MediaStore: forma correcta en Android ──────────────────────────
+        try:
+            PA       = autoclass('org.kivy.android.PythonActivity')
+            Media    = autoclass('android.provider.MediaStore$Audio$Media')
+            uri      = Media.EXTERNAL_CONTENT_URI
+            resolver = PA.mActivity.getContentResolver()
+            # is_music=1 excluye ringtones, notificaciones y PTT de WhatsApp
+            cursor   = resolver.query(uri, None, 'is_music=1', None, 'title ASC')
+            archivos = []
+            if cursor and cursor.moveToFirst():
+                col = cursor.getColumnIndex('_data')
+                while True:
+                    path = cursor.getString(col)
+                    if path and os.path.isfile(path):
+                        archivos.append(path)
+                    if not cursor.moveToNext():
+                        break
+                cursor.close()
+            if archivos:
+                return archivos
+        except Exception:
+            pass
+
+        # ── 2. Fallback: filesystem 3 niveles ─────────────────────────────────
+        EXT  = ('.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg', '.opus')
+        DIRS = [
             "/storage/emulated/0/Music",
             "/storage/emulated/0/music",
             "/storage/emulated/0/Musica",
-            "/storage/emulated/0/musica",
             "/storage/emulated/0/Download",
             "/storage/emulated/0/Downloads",
-            "/storage/emulated/0/Podcasts",
-            "/storage/emulated/0/Recordings",
             "/sdcard/Music",
-            "/sdcard/music",
             "/sdcard/Download",
         ]
         archivos = []
         seen = set()
 
-        def _scan_dir(path, depth):
+        def _scan(path, depth):
             if depth > 3:
                 return
             try:
-                for entry in os.listdir(path):
-                    ruta = os.path.join(path, entry)
-                    low = entry.lower()
-                    if low.endswith(EXT):
+                for e in os.listdir(path):
+                    ruta = os.path.join(path, e)
+                    if e.lower().endswith(EXT):
                         key = os.path.realpath(ruta)
                         if key not in seen:
-                            seen.add(key)
-                            archivos.append(ruta)
-                    elif os.path.isdir(ruta) and not entry.startswith('.'):
-                        _scan_dir(ruta, depth + 1)
+                            seen.add(key); archivos.append(ruta)
+                    elif os.path.isdir(ruta) and not e.startswith('.'):
+                        _scan(ruta, depth + 1)
             except Exception:
                 pass
 
-        for carpeta in carpetas:
-            if os.path.exists(carpeta):
-                _scan_dir(carpeta, 1)
-
-        # Si no encontramos nada con extensiones primarias, incluir .ogg/.opus
-        if not archivos:
-            def _scan_dir_extra(path, depth):
-                if depth > 2:
-                    return
-                try:
-                    for entry in os.listdir(path):
-                        ruta = os.path.join(path, entry)
-                        low = entry.lower()
-                        if low.endswith(EXT + EXT_EXTRA):
-                            key = os.path.realpath(ruta)
-                            if key not in seen:
-                                seen.add(key)
-                                archivos.append(ruta)
-                        elif os.path.isdir(ruta) and not entry.startswith('.'):
-                            _scan_dir_extra(ruta, depth + 1)
-                except Exception:
-                    pass
-            for carpeta in carpetas:
-                if os.path.exists(carpeta):
-                    _scan_dir_extra(carpeta, 1)
+        for d in DIRS:
+            if os.path.exists(d):
+                _scan(d, 1)
 
         return sorted(archivos, key=lambda x: os.path.basename(x).lower())
 
@@ -558,17 +552,27 @@ class YAMI_Sonic_Autonomy(App):
             return
 
         # SoundLoader.load() debe correr en el main thread (MediaPlayer de Android lo requiere)
-        self.sonido_actual = SoundLoader.load(ruta)
+        nombre_corto = os.path.basename(ruta)[:20]
+        self._set_status(f'CARGANDO: {nombre_corto}')
+        try:
+            self.sonido_actual = SoundLoader.load(ruta)
+        except Exception as ex:
+            self._set_status(f'ERR LOAD: {str(ex)[:28]}')
+            return
         if self.sonido_actual:
             self.sonido_actual.volume = self.root_widget.ids.vol_slider.value
             self.sonido_actual.bind(on_stop=self._on_fin)
-            self.sonido_actual.play()
+            try:
+                self.sonido_actual.play()
+            except Exception as ex:
+                self._set_status(f'ERR PLAY: {str(ex)[:28]}')
+                return
             self.en_pausa = False
-            self._set_status('▶ REPRODUCIENDO')
+            self._set_status('> REPRODUCIENDO')
             self._actualizar_ui_cancion()
             self.root_widget.ids.orb.is_playing = True
         else:
-            self._set_status('ERROR: FORMATO NO SOPORTADO')
+            self._set_status(f'NO SOPORTADO: {nombre_corto}')
 
     def pausar(self):
         if self.sonido_actual and self.sonido_actual.state == 'play':
