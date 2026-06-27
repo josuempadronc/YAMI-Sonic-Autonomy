@@ -384,6 +384,7 @@ class YAMI_Sonic_Autonomy(App):
         self.song_items     = []
         self.mic_activo     = False
         self._recognizer    = None
+        self._batch_idx     = 0
 
         self.root_widget = YAMI_Layout()
 
@@ -424,6 +425,7 @@ class YAMI_Sonic_Autonomy(App):
         grid = self.root_widget.ids.lista_grid
         grid.clear_widgets()
         self.song_items.clear()
+        self._batch_idx = 0
 
         self.lista_musica = archivos if archivos else [
             "Despertar del Grimorium.mp3",
@@ -435,16 +437,28 @@ class YAMI_Sonic_Autonomy(App):
             "Resonancia de Mando.mp3",
         ]
 
-        self.root_widget.ids.lbl_biblioteca.text = f'BIBLIOTECA: {len(self.lista_musica)} TEMAS'
-
-        for i, ruta in enumerate(self.lista_musica):
-            display = os.path.basename(ruta)
-            item = SongItem(nombre=display, indice=i, app_ref=self)
-            grid.add_widget(item)
-            self.song_items.append(item)
-
+        total = len(self.lista_musica)
+        self.root_widget.ids.lbl_biblioteca.text = f'BIBLIOTECA: {total} TEMAS'
         if self.lista_musica:
             self._actualizar_ui_cancion()
+            self._set_status('CARGANDO LISTA...')
+        # Añadir items por lotes para no bloquear el main thread
+        Clock.schedule_once(self._poblar_batch, 0)
+
+    def _poblar_batch(self, dt):
+        """Añade un lote de SongItems al grid sin bloquear el UI."""
+        BATCH = 12
+        grid  = self.root_widget.ids.lista_grid
+        fin   = min(self._batch_idx + BATCH, len(self.lista_musica))
+        for i in range(self._batch_idx, fin):
+            ruta = self.lista_musica[i]
+            item = SongItem(nombre=os.path.basename(ruta), indice=i, app_ref=self)
+            grid.add_widget(item)
+            self.song_items.append(item)
+        self._batch_idx = fin
+        if fin < len(self.lista_musica):
+            Clock.schedule_once(self._poblar_batch, 0.04)
+        else:
             self._set_status('NÚCLEO LISTO')
 
     def _escanear_musica_android(self):
